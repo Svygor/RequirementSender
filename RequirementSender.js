@@ -1,16 +1,13 @@
 var express = require("express");
 var request = require("request");
-var FormData = require("form-data");
 var fs = require("fs");
-var path = require("path");
+const rp = require("request-promise");
 
 const app = express();
-var cookies =
-  ".eJyrVkrLzFeyUoopNTAxMgCRxqlgMhlMgkVMLJDEjRRAlGEaQtrYCEyagskkJR2lzBSggUX5uYnFGfllQH5OYnFJfE5-emaeklW1kgJI1q0oU0fB2FDBsTRdwcjA0ELBwMLKxMjK0FTB3TdEqVZHqTi1qCwzORWotCQVqNs9wFipFgCGLTEc.Dmpmtw.CSZCzjflefwYDXOjiaxSkJnr13s";
 
-app.get("/sendRequirement/:productGuid", function(req, res) {
+app.get("/sendRequirement/:productGuid", async function(req, res) {
   var product = getProduct(req.params.productGuid);
-  sendRequirement(product);
+  await sendRequirement(product);
   res.send("Требование отправлено!");
 });
 
@@ -48,11 +45,7 @@ var getProduct = function(productGuid) {
   return result;
 };
 
-var sendRequirement = function(product) {
-  var isLoginNeeded = isCookiesValid(cookies);
-  if (isLoginNeeded) {
-    cookies = login();
-  }
+var sendRequirement = async function(product) {
   //считываем PDF-ку, которую будем слать
   const file = fs.readFileSync("./RequirementFiles/123.pdf");
 
@@ -79,24 +72,23 @@ var sendRequirement = function(product) {
   var r = request(
     {
       headers: {
-        //TODO: нужно придумать, как авторизовываться
-        Cookie:
-          "session=.eJyrVkrLzFeyUoopNTAxMgCRxqlgMhlMgkVMLJDEjRRAlGEaQtrYCEyagskkJR2lzBSggUX5uYnFGfllQH5OYnFJfE5-emaeklW1kgJI1q0oU0fB2FDBsTRdwcjA0ELBwMLKxMjK0FTB3TdEqVZHqTi1qCwzORWotCQVqNs9wFipFgCGLTEc.Dmpmtw.CSZCzjflefwYDXOjiaxSkJnr13s"
+        Cookie: await getCookie()
       },
       uri: "http://31.13.60.76:8000/create_demand",
       formData: formData,
       method: "POST"
     },
-    (err, res, body) => {
+    async (err, res, body) => {
       //вытаскиваем ссыль на требование из ответа
+      console.log(body);
       let response = JSON.parse(body);
       let url = response["url"];
-      sendToCore(url, product.guid);
+      await sendToCore(url, product.guid);
     }
   );
 };
 
-var sendToCore = function(reqUrl, productGuid) {
+var sendToCore = async function(reqUrl, productGuid) {
   //тело запроса для запуливания требования в ядро
   var coreFormData = {
     directionType: "Fns",
@@ -111,7 +103,7 @@ var sendToCore = function(reqUrl, productGuid) {
   };
 
   //запуливание требования в ядро
-  var req = request(
+  var req = await request(
     {
       uri: "http://kube-staging.astralnalog.ru:32038/uploadFile",
       formData: coreFormData,
@@ -124,42 +116,25 @@ var sendToCore = function(reqUrl, productGuid) {
   );
 };
 
-var login = function() {
-  //тело запроса для логина
-  var loginFormData = {
-    login: "romashov",
-    password: "66LjzNreZue",
-    submit: "Войти"
-  };
-  var req = request(
-    {
+const getCookie = async () => {
+  try {
+    var responce = await rp({
       uri: "http://31.13.60.76:8000/login",
-      formData: loginFormData,
-      method: "POST"
-    },
-    (err, res) => {
-      //console.log(err);
-      //console.log(res.Cookie);
-      return res;
-    }
-  );
-};
+      method: "POST",
+      resolveWithFullResponse: true,
+      simple: false,
+      form: {
+        login: "evilivan",
+        password: "oPaoPa225"
+      }
+    });
 
-var isCookiesValid = function(cookies) {
-  request(
-    {
-      headers: {
-        Cookie: "session=" + cookies
-      },
-      uri: "http://31.13.60.76:8000/create_demand",
-      method: "GET"
-    },
-    (err, res) => {
-      console.log(res);
-      if (res.statusCode == 200) return false;
-      else return true;
-    }
-  );
-
-  //console.log(req);
+    const [setCookie] = responce.headers["set-cookie"];
+    const parsedSetCookie = setCookie.match(/^(.*?);/)
+    const [ input, cookie ] = parsedSetCookie;
+    return cookie;
+  } catch (e) {
+    console.log("err", e);
+    return null;
+  }
 };
