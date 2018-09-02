@@ -74,7 +74,7 @@ var sendRequirement = async function(product) {
       headers: {
         Cookie: await getCookie()
       },
-      uri: "http://31.13.60.76:8000/create_demand",
+      uri: "http://gp3.staging.keydisk.ru/create_demand",
       formData: formData,
       method: "POST"
     },
@@ -119,7 +119,7 @@ var sendToCore = async function(reqUrl, productGuid) {
 const getCookie = async () => {
   try {
     var responce = await rp({
-      uri: "http://31.13.60.76:8000/login",
+      uri: "http://gp3.staging.keydisk.ru/login",
       method: "POST",
       resolveWithFullResponse: true,
       simple: false,
@@ -130,8 +130,8 @@ const getCookie = async () => {
     });
 
     const [setCookie] = responce.headers["set-cookie"];
-    const parsedSetCookie = setCookie.match(/^(.*?);/)
-    const [ input, cookie ] = parsedSetCookie;
+    const parsedSetCookie = setCookie.match(/^(.*?);/);
+    const [input, cookie] = parsedSetCookie;
     return cookie;
   } catch (e) {
     console.log("err", e);
