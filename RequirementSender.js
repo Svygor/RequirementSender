@@ -119,13 +119,13 @@ var sendToCore = async function(reqUrl, productGuid) {
 const getCookie = async () => {
   try {
     var responce = await rp({
-      uri: "http://gp3.staging.keydisk.ru/login",
+      uri: "http://test.test/login",
       method: "POST",
       resolveWithFullResponse: true,
       simple: false,
       form: {
-        login: "evilivan",
-        password: "oPaoPa225"
+        login: "test",
+        password: "test"
       }
     });
 
